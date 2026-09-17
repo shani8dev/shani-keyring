@@ -66,3 +66,42 @@ error, and nothing currently checks this automatically.
 
 `README.md` explains what each of the three files is for and how
 `shani-pkgbuilds` consumes them.
+
+## Garuda Cross-Reference Findings (added 2026-09-17)
+
+Based on a full scan of the garuda clones mapped against shani — **29 repos** (not 34; several user-listed names don't exist — see `../garuda-catalog.md` §Discrepancies). See `../garuda-mapping-analysis.md`, `../deep-analysis.md`, `../shani-catalog.md`, and `../garuda-catalog.md` for full details. No direct garuda equivalent — shani-keyring manages the pacman trust root for the entire shani ecosystem.
+
+### 🔗 Cross-repo context
+
+1. **Critical trust anchor** — This repo holds the pacman trust root (public key + trust/revoke files) that every shani install verifies packages against. Any change to this repo affects every package on every shani machine. Treat with the same weight as shani-deploy's boot-entry code.
+
+2. **Cross-repo dependency** — `shani-builder/AGENTS.md` documents that `validpgpkeys` from PKGBUILDs are now imported into the build container's keyring before `makepkg` runs. Ensure this repo's keyring is updated whenever a new package with `validpgpkeys` is added to `shani-pkgbuilds`.
+
+### 🔍 Re-Scan Findings (2026-09-17)
+
+Re-scanned against `garuda-catalog.md` (29 repos, not 34) and `shani-catalog.md` (16 repos). **Confirmed mapping: no direct garuda equivalent.** The garuda-catalog discrepancy table lists `garuda-keyring` as NOT FOUND — the closest entry is `shani-keyring/` itself. Garuda's trust infrastructure is fragmented rather than a dedicated repo: Chaotic-AUR keys `0706B90D37D9B881` / `3056513887B78AEB` are baked directly into the `buildiso-docker` and `garuda-distrobox` Dockerfiles (`pacman-key --init`/`--lsign-key`), and `garuda-tools` ships `signiso`/`signpkgs`/`signfile` signing tools with a `gpgkey` config — but there is no standalone keyring/trust-root repo anywhere in the 29. This makes shani-keyring a **shani-specific security-critical component**: the single pacman trust root for the entire `[shani]` repo.
+
+**New gaps from the garuda side:**
+1. **No automated checksum-sync check** — `shani-pkgbuilds/shani-keyring/PKGBUILD` packages this repo's files verbatim, checksummed, and nothing verifies the two stay in sync (confirmed in `shani-catalog.md` §10 "Missing"). A drift silently breaks every clean install.
+2. **No CI workflows, no pre-commit hooks** — confirmed in `shani-catalog.md` §10. Garuda's equivalent trust operations (key init/lsign in `buildiso-docker`, `garuda-distrobox`) are at least exercised by GitLab CI on every image build.
+3. **No central config layer** — `garuda-tools` has `garuda-tools.conf` with system-wide (`/etc/`) and user (`~/.config/`) layers; shani-keyring is three static files with no config surface, so key selection/rotation parameters can't be tuned per-install.
+4. **Single non-expiring key, no rotation path** — documented as deliberate in this repo's SECURITY.md, but the garuda side shows the alternative: two Chaotic-AUR keys with a documented `pacman-key --init`/`--lsign-key` bootstrap in Dockerfiles. Worth re-reading the trade-off against that precedent.
+
+**Shani advantages:**
+1. **One dedicated, auditable trust root** — exactly three files (`shani.gpg`, `shani-trusted`, `shani-revoked`) vs garuda's keys scattered across Dockerfiles and tool configs. The blast radius of a change is fully contained in this repo.
+2. **Consistent single fingerprint** `7B927BFFD4A9EAAA8B666B77DE217F3DA8014792` used for package signing, UKI signing, and agent commands (per `shani-catalog.md` global patterns) — one key to reason about, vs garuda's two-key Chaotic-AUR setup.
+3. **Documented incident-response runbook** — SECURITY.md's "If this key is ever compromised" section is `pacman-key`-source-verified; none of the 29 garuda repos has an AGENTS.md or equivalent security documentation at all.
+
+**Qt GUI gap note:** not applicable — trust-root management is `pacman-key` CLI-only on both sides. (Garuda's 12 Qt GUI apps carry `pkexec` policies for privileged ops, but none of them manages the pacman trust root.)
+
+### 📋 Implementation Roadmap (2026-09-17)
+
+Implementation priorities are per `../IMPLEMENTATION-ROADMAP.md` (master roadmap for the whole shani ecosystem).
+
+1. **Automated checksum-sync check with `shani-pkgbuilds` (P0, few hours).** Master-roadmap item #6. `shani-pkgbuilds/shani-keyring/PKGBUILD` packages this repo's three files verbatim, checksummed, and nothing currently verifies the two stay in sync — a drift silently breaks every clean install with a checksum-mismatch error. Build a pre-commit hook or CI check that runs `sha256sum shani-keyring/*` against the `sha256sums=()` array in the PKGBUILD and fails on mismatch.
+
+2. **Key rotation path planning (P0/P1, documented trade-off → real runbook).** The single non-expiring key has no rotation path — a deliberate, documented trade-off (see `SECURITY.md`'s incident-response runbook). Formalize an actual rotation procedure (new key generation, dual-key period, migration steps for `shani-trusted`/`shani-revoked` and every downstream `validpgpkeys` reference) even if it's never executed — the plan must exist before it's needed. Do NOT copy garuda's fragmented approach of baking keys into Dockerfiles; shani's single dedicated trust root is the superior model to preserve.
+
+3. **CI workflow (P1).** Verify key-file integrity on every commit: `gpg --dry-run --import shani.gpg` must succeed and the resolved fingerprint must match `7B927BFFD4A9EAAA8B666B77DE217F3DA8014792`. Wire in via `shani-ci-commons` templates once they exist (master-roadmap item #7).
+
+4. **Conventional commits + minimal shared CI (P1).** Adopt the ecosystem-wide conventional-commit convention (master-roadmap item #9) and a minimal `renovate.json` (item #8) — this repo has no dependencies to update, so Renovate is near-no-op here, but the commit convention matters for changelog generation across the ecosystem.
