@@ -25,7 +25,9 @@ If you haven't seen it work (or fail) for real, it isn't verified.
 
 Don't hand-edit these files and assume the format is right — a keyring
 that `gpg`/`pacman-key` can't parse is worse than no change at all (it can
-make a clean install fail entirely). Verify:
+make a clean install fail entirely). The pass condition is binary and
+checkable, not a feeling: both commands below must succeed AND show the
+exact fingerprint you intended, not just "no error." Verify:
 
 ```bash
 gpg --dry-run --import shani.gpg          # must succeed, no errors
@@ -49,6 +51,13 @@ equivalent skill/subagent framework — use it to check the two downstream
 with the import/verify commands here, rather than checking one thing at a
 time.
 
+## Commit discipline
+
+Before composing a commit message, run `git log --oneline -20` (and `git
+log -5 -- <touched paths>` for the files you changed) and match the
+existing style — subject shape, scope prefixes, body detail level —
+rather than writing in a generic format.
+
 ## Boundaries
 
 - ✅ **Always**: `gpg --dry-run --import`/`--show-keys` verify any hand-edit
@@ -63,6 +72,7 @@ time.
   confirming the fingerprint is exactly `7B927BFFD4A9EAAA8B666B77DE217F3DA8014792`
   — this is the trust root for every package on every shani machine; a
   wrong-but-parseable key is far worse than a syntax error.
+- 🚫 **Never**: delete or skip a failing test to make a build/CI pass — fix the underlying code, not the test. A red test is signal; silencing it destroys the signal, not the bug.
 
 ## Audit-verified known issues (confirmed present)
 
