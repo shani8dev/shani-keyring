@@ -60,7 +60,27 @@ time.
   actually happens to `shani-revoked`, why revocation doesn't propagate
   to already-installed machines automatically, and why a full rotation is
   a much bigger effort than revocation alone).
-- **CI status.** No CI workflows, no pre-commit hooks.
+- **CI status — corrected, was stale.** `.github/workflows/ci.yml` exists
+  with a `verify-keyring` job (`gpg --dry-run --import shani.gpg` +
+  fingerprint check) — this line previously said "No CI workflows", which
+  was already wrong at the time it was written (verified via `git log`:
+  the workflow predates that note). No pre-commit hooks.
+- **Automated checksum-sync check with `shani-pkgbuilds` — DONE
+  (2026-09-18).** `tests/check-checksums.sh` already existed (parses the
+  PKGBUILD's `source=()`/`sha256sums=()` arrays and diffs against this
+  repo's actual files) but was never wired into anything — a manual-only
+  script, same "built but not connected" pattern found in shani-chronoa
+  the same day. **Verified live**: ran it clean (all 3 match), then
+  corrupted a local copy of `shani-trusted` and reran it — correctly
+  caught the mismatch and exited 1, restored and reran clean again. Added
+  a `verify-pkgbuild-checksum-sync` job to `ci.yml` that checks out both
+  this repo and the sibling `shani8dev/shani-pkgbuilds` repo (GitHub
+  Actions runners don't have sibling repos checked out by default, unlike
+  this local dev environment) and runs the existing script —
+  **verified the exact checkout layout locally** by replicating it under
+  `/tmp` (two repos as true siblings, `working-directory: shani-keyring`,
+  relative `../shani-pkgbuilds/...` path) before trusting the YAML.
+  Master-roadmap item #6, closed.
 
 ## Cross-repo impact — check before calling a fix complete
 
@@ -106,10 +126,10 @@ Re-scanned against `garuda-catalog.md` (29 repos, not 34) and `shani-catalog.md`
 
 Implementation priorities are per `../IMPLEMENTATION-ROADMAP.md` (master roadmap for the whole shani ecosystem).
 
-1. **Automated checksum-sync check with `shani-pkgbuilds` (P0, few hours).** Master-roadmap item #6. `shani-pkgbuilds/shani-keyring/PKGBUILD` packages this repo's three files verbatim, checksummed, and nothing currently verifies the two stay in sync — a drift silently breaks every clean install with a checksum-mismatch error. Build a pre-commit hook or CI check that runs `sha256sum shani-keyring/*` against the `sha256sums=()` array in the PKGBUILD and fails on mismatch.
+1. ~~**Automated checksum-sync check with `shani-pkgbuilds` (P0, few hours).**~~ **DONE (2026-09-18)** — see "Audit-verified known issues" above. Master-roadmap item #6, closed.
 
 2. **Key rotation path planning (P0/P1, documented trade-off → real runbook).** The single non-expiring key has no rotation path — a deliberate, documented trade-off (see `SECURITY.md`'s incident-response runbook). Formalize an actual rotation procedure (new key generation, dual-key period, migration steps for `shani-trusted`/`shani-revoked` and every downstream `validpgpkeys` reference) even if it's never executed — the plan must exist before it's needed. Do NOT copy garuda's fragmented approach of baking keys into Dockerfiles; shani's single dedicated trust root is the superior model to preserve.
 
-3. **CI workflow (P1).** Verify key-file integrity on every commit: `gpg --dry-run --import shani.gpg` must succeed and the resolved fingerprint must match `7B927BFFD4A9EAAA8B666B77DE217F3DA8014792`. Wire in via `shani-ci-commons` templates once they exist (master-roadmap item #7).
+3. ~~**CI workflow (P1).** Verify key-file integrity on every commit...~~ **Already existed** when this was written (stale note, corrected 2026-09-18 — see "Audit-verified known issues" above): `ci.yml`'s `verify-keyring` job already does exactly this (`gpg --dry-run --import` + fingerprint check). Only the checksum-sync job (item 1) was actually missing.
 
 4. **Conventional commits + minimal shared CI (P1).** Adopt the ecosystem-wide conventional-commit convention (master-roadmap item #9) and a minimal `renovate.json` (item #8) — this repo has no dependencies to update, so Renovate is near-no-op here, but the commit convention matters for changelog generation across the ecosystem.

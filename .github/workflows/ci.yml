@@ -26,3 +26,27 @@ jobs:
             exit 1
           }
           echo "OK: fingerprint $fingerprint verified"
+
+  verify-pkgbuild-checksum-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout shani-keyring
+        uses: actions/checkout@v4
+        with:
+          path: shani-keyring
+
+      - name: Checkout shani-pkgbuilds
+        uses: actions/checkout@v4
+        with:
+          repository: shani8dev/shani-pkgbuilds
+          path: shani-pkgbuilds
+
+      # shani-pkgbuilds/shani-keyring/PKGBUILD packages this repo's three
+      # files verbatim, checksummed - nothing else verifies the two stay in
+      # sync, and a drift silently breaks every clean install with a
+      # checksum-mismatch error. tests/check-checksums.sh already does this
+      # comparison locally (default PKGBUILD path is the sibling checkout
+      # this job just set up); this just runs it in CI.
+      - name: Verify shani-keyring files match shani-pkgbuilds' PKGBUILD checksums
+        working-directory: shani-keyring
+        run: ./tests/check-checksums.sh
