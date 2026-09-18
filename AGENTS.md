@@ -49,6 +49,21 @@ equivalent skill/subagent framework — use it to check the two downstream
 with the import/verify commands here, rather than checking one thing at a
 time.
 
+## Boundaries
+
+- ✅ **Always**: `gpg --dry-run --import`/`--show-keys` verify any hand-edit
+  before committing (see "Rule" above); bump `shani-pkgbuilds/shani-keyring/
+  PKGBUILD`'s checksums in the same change if you touch any of the three
+  files here.
+- ⚠️ **Ask first**: rotating the signing key — no rotation path exists yet
+  (see below); this needs the runbook in item 2 of the roadmap section
+  written and reviewed before it's ever executed for real, not improvised
+  mid-incident.
+- 🚫 **Never**: treat "gpg/pacman-key parsed it" as sufficient without also
+  confirming the fingerprint is exactly `7B927BFFD4A9EAAA8B666B77DE217F3DA8014792`
+  — this is the trust root for every package on every shani machine; a
+  wrong-but-parseable key is far worse than a syntax error.
+
 ## Audit-verified known issues (confirmed present)
 
 - **Stray header line before the real armor header (Low, cosmetic — NOT install-breaking).** `shani.gpg:1-2` — line 1 is a bogus `-----shrinivas-----` line, with the real `-----BEGIN PGP PUBLIC KEY BLOCK-----` armor header right after it on line 2. This was first flagged as Critical/install-breaking; re-verified by actual execution (`gpg --import` on GnuPG 2.4.4, and real `pacman-key --add` inside the `shani-builder` Arch container) — both succeed with exit code 0 and correctly resolve fingerprint `7B927BFFD4A9EAAA8B666B77DE217F3DA8014792`, since OpenPGP armor parsers scan for the BEGIN marker and ignore leading garbage before it. Worth cleaning up for tidiness, but not a real defect — don't re-flag this as Critical without re-testing against real `gpg`/`pacman-key` first.
