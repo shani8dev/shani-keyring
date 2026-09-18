@@ -13,6 +13,14 @@ Exactly three files — `shani.gpg` (public key), `shani-trusted`,
 PKGBUILD. This is the pacman trust root for the entire `[shani]` repo:
 every package Shanios installs is verified against the key(s) listed here.
 
+## Empirical verification (mandatory)
+
+**Reading code is analysis; running code is verification.** A change is not
+verified by reading the diff, running `bash -n`, or confirming it "looks
+correct." It is verified by observing the actual behavior of the real
+thing in the real environment — built, served, deployed, signed, running.
+If you haven't seen it work (or fail) for real, it isn't verified.
+
 ## Rule: a change here is only correct if it actually imports and verifies
 
 Don't hand-edit these files and assume the format is right — a keyring
