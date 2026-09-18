@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-keyring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GnuPG
+        run: sudo apt-get update && sudo apt-get install -y gnupg
+
+      - name: Verify shani.gpg imports cleanly
+        run: gpg --dry-run --import shani.gpg
+
+      - name: Verify fingerprint matches expected
+        run: |
+          fingerprint="7B927BFFD4A9EAAA8B666B77DE217F3DA8014792"
+          gpg --show-keys shani.gpg | grep -q "$fingerprint" || {
+            echo "FAIL: fingerprint $fingerprint not found in shani.gpg"
+            exit 1
+          }
+          echo "OK: fingerprint $fingerprint verified"
