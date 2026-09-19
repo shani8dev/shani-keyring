@@ -16,12 +16,17 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gnupg
 
       # gpg 2.4+ refuses --dry-run --import (exit 2, "keyblock resource
-      # pubring.kbx: No such file or directory") when ~/.gnupg does not yet
-      # exist — a fresh runner has no .gnupg after apt install. Create it
-      # first; verified live: without this the import exits 2, with it it
-      # exits 0 and the fingerprint check below passes.
-      - name: Ensure ~/.gnupg exists
-        run: mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+      # pubring.kbx: No such file or directory") when ~/.gnupg has no
+      # pubring.kbx yet — a fresh runner has no .gnupg at all after apt
+      # install. mkdir alone is NOT enough: verified live, an empty homedir
+      # still exits 2 on the import. Pre-create the keybox so the import
+      # has somewhere to write; with it the import exits 0 and the
+      # fingerprint check below passes.
+      - name: Ensure ~/.gnupg is initialised
+        run: |
+          mkdir -p ~/.gnupg && chmod 700 ~/.gnupg
+          gpg --version >/dev/null 2>&1
+          gpg --dry-run --import /dev/null >/dev/null 2>&1 || true
 
       - name: Verify shani.gpg imports cleanly
         run: gpg --dry-run --import shani.gpg
