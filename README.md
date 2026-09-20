@@ -47,6 +47,14 @@ Expire-Date: 2y
 EOF
 ```
 
+> ⚠️ **`%no-protection` is a known bad practice — don't ship a key this way.**
+> This procedure is documented as-is because it's the *mechanical* shape of
+> a rotation; the real key in production (`7B927BFFD4A9EAAA8B666B77DE217F3DA8014792`)
+> should be generated with a passphrase and stored protected. Whether the
+> live key was actually generated with or without protection is a separate
+> historical question — confirm it directly (`gpg --list-secret-keys` shows
+> the protection algorithm) before downgrading this from "known issue."
+
 ### 2. Export the new public key
 
 ```bash
